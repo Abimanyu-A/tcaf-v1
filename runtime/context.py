@@ -39,10 +39,13 @@ class RuntimeContext:
         self.web_login_url = web_login_url
         self.web_username = web_username
         self.web_password = web_password
+        self.interface = "eth0"
 
         # Core subsystems (initialized later)
         self.ssh_connection = None
         self.terminal_manager = None
+
+        self.scan_results = None
 
         # Device information
         self.device_type = None

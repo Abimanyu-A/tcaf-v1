@@ -3,6 +3,7 @@ from core.step_runner import StepRunner
 from steps.open_url_step import OpenURLStep
 from steps.browser_screenshot_step import BrowserScreenshotStep
 
+
 class TC4HTTPSAuthPrompt(TestCase):
 
     def __init__(self):
@@ -14,7 +15,9 @@ class TC4HTTPSAuthPrompt(TestCase):
 
     def run(self, context):
 
-        url = f"http://{context.ssh_ip}/dvwa/login.php"
+        login_path = context.profile.get("https.login_path")
+
+        url = f"http://{context.ssh_ip}{login_path}"
 
         StepRunner([
             OpenURLStep(url),

@@ -5,25 +5,32 @@ from terminal.manager import TerminalManager
 from browser.manager import BrowserManager
 from reporting.report_manager import ReportManager
 from utils.dut_info import get_dut_info
+from config.profile_loader import ProfileLoader
 
 
 class Engine:
 
     def __init__(
-            self,
-            clause=None, 
-            section=None, 
-            ssh_user=None, 
-            ssh_ip=None, 
-            ssh_password=None, 
-            snmp_user=None, 
-            snmp_auth_pass=None, 
-            snmp_priv_pass=None,
-            web_login_url=None,
-            web_username=None,
-            web_password=None
-        ):
+        self,
+        clause=None,
+        section=None,
+        profile="default",
+        ssh_user=None,
+        ssh_ip=None,
+        ssh_password=None,
+        snmp_user=None,
+        snmp_auth_pass=None,
+        snmp_priv_pass=None,
+        web_login_url=None,
+        web_username=None,
+        web_password=None
+    ):
 
+        # Load DUT profile
+        logger.info(f"Loading DUT profile: {profile}")
+        self.profile = ProfileLoader(profile)
+
+        # Create runtime context
         self.context = RuntimeContext(
             clause=clause,
             section=section,
@@ -33,11 +40,13 @@ class Engine:
             snmp_user=snmp_user,
             snmp_auth_pass=snmp_auth_pass,
             snmp_priv_pass=snmp_priv_pass,
-            web_login_url = web_login_url,
-            web_username = web_username,
-            web_password = web_password
-
+            web_login_url=web_login_url,
+            web_username=web_username,
+            web_password=web_password
         )
+
+        # Inject profile into context
+        self.context.profile = self.profile
 
         logger.info("Engine initialized")
 
@@ -76,6 +85,8 @@ class Engine:
 
         # Initialize terminal manager
         self.context.terminal_manager = TerminalManager()
+
+        # Initialize browser manager
         self.context.browser = BrowserManager()
 
         tm = self.context.terminal_manager
@@ -90,7 +101,8 @@ class Engine:
 
         dut_info = get_dut_info(
             self.context.ssh_user,
-            self.context.ssh_ip
+            self.context.ssh_ip,
+            self.context.ssh_password
         )
 
         self.context.dut_name = dut_info["dut_name"]

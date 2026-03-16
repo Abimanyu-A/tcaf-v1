@@ -3,8 +3,8 @@ from core.step_runner import StepRunner
 from steps.command_step import CommandStep
 from steps.expect_one_of_step import ExpectOneOfStep
 from steps.screenshot_step import ScreenshotStep
-from steps.session_reset_step import SessionResetStep
 from steps.clear_terminal_step import ClearTerminalStep
+
 
 class TC7SSHv1Disabled(TestCase):
 
@@ -17,7 +17,12 @@ class TC7SSHv1Disabled(TestCase):
 
     def run(self, context):
 
-        ssh_cmd = f"ssh -1 {context.ssh_user}@{context.ssh_ip}"
+        ssh_cmd = context.profile.get("ssh.ssh_v1_command").format(
+            user=context.ssh_user,
+            ip=context.ssh_ip
+        )
+
+        password_prompts = context.profile.get("ssh.password_prompt")
 
         StepRunner([
             ClearTerminalStep("tester"),
@@ -28,14 +33,12 @@ class TC7SSHv1Disabled(TestCase):
             "tester",
             [
                 "no longer supported",
-                "connection closed",
-                "password"
-            ]
+                "connection closed"
+            ] + password_prompts
         ).execute(context)
 
-        if pattern == "password":
+        if pattern in password_prompts:
 
-            # SSHv1 actually worked
             ScreenshotStep("tester").execute(context)
 
             self.fail_test()

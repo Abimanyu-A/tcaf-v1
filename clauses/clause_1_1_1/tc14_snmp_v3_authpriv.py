@@ -5,7 +5,7 @@ from steps.screenshot_step import ScreenshotStep
 from steps.clear_terminal_step import ClearTerminalStep
 
 
-class TC9SNMPv3AuthPriv(TestCase):
+class TC14SNMPv3AuthPriv(TestCase):
 
     def __init__(self):
 

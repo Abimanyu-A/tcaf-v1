@@ -1,0 +1,69 @@
+ssh:
+  connect_command: "ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa {user}@{ip}"
+  ssh_v1_command: "ssh -1 {user}@{ip}"
+
+  fingerprint_prompt:
+    - "continue connecting"
+
+  password_prompt:
+    - "password"
+
+  success_prompt:
+    - "$"
+    - "#"
+    - ">"
+
+  failure_prompt:
+    - "Permission denied"
+    - "connection refused"
+
+  invalid_password: "wrongpassword"
+
+  commands:
+    verify_login: "whoami"
+
+
+https:
+  login_path: "/dvwa/login.php"
+
+  login_page_identifiers:
+    - "login"
+    - "username"
+    - "password"
+
+  invalid_login_identifiers:
+    - "login failed"
+    - "incorrect"
+
+
+tls:
+  tls10_test_command: "openssl s_client -connect {ip}:443 -tls1"
+  tls11_test_command: "openssl s_client -connect {ip}:443 -tls1_1"
+
+  failure_indicators:
+    - "error"
+    - "protocol version"
+
+  success_indicator:
+    - "Cipher"
+
+
+cipher_scan:
+  deprecated_ciphers:
+    - "RC4"
+    - "3DES"
+    - "DES"
+    - "MD5"
+    - "EXPORT"
+    - "NULL"
+
+  scan_command: "nmap --script ssl-enum-ciphers -p 443 {ip}"
+
+
+snmp:
+  v1_command: "snmpwalk -v1 -c public {ip}"
+  v2_command: "snmpwalk -v2c -c public {ip}"
+
+  failure_indicators:
+    - "Timeout"
+    - "No Response"

@@ -22,7 +22,20 @@ class TC3SSHInvalidCredentials(TestCase):
 
     def run(self, context):
 
-        ssh_cmd = f"ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa {context.ssh_user}@{context.ssh_ip}"
+        ssh_cmd = context.profile.get("ssh.connect_command").format(
+            user=context.ssh_user,
+            ip=context.ssh_ip
+        )
+
+        fingerprint_prompts = context.profile.get("ssh.fingerprint_prompt")
+        password_prompts = context.profile.get("ssh.password_prompt")
+        success_prompts = context.profile.get("ssh.success_prompt")
+        failure_prompts = context.profile.get("ssh.failure_prompt")
+
+        invalid_password = context.profile.get(
+            "ssh.invalid_password",
+            "wrongpassword"
+        )
 
         try:
 
@@ -32,14 +45,10 @@ class TC3SSHInvalidCredentials(TestCase):
 
             pattern, _ = ExpectOneOfStep(
                 "tester",
-                [
-                    "password",
-                    "continue connecting",
-                    "connection refused"
-                ]
+                password_prompts + fingerprint_prompts + failure_prompts
             ).execute(context)
 
-            if pattern == "continue connecting":
+            if pattern in fingerprint_prompts:
 
                 StepRunner([
                     InputStep("tester", "yes")
@@ -47,38 +56,31 @@ class TC3SSHInvalidCredentials(TestCase):
 
                 pattern, _ = ExpectOneOfStep(
                     "tester",
-                    ["password"]
+                    password_prompts
                 ).execute(context)
 
-            if pattern == "connection refused":
+            if pattern in failure_prompts:
 
                 logger.error("SSH connection refused")
 
                 ScreenshotStep("tester").execute(context)
 
                 self.fail_test()
+
                 return self
 
-            # Attempt wrong password multiple times (synchronized)
-            for attempt in range(3):
+            for _ in range(3):
 
                 StepRunner([
-                    InputStep("tester", "wrongpassword")
+                    InputStep("tester", invalid_password)
                 ]).run(context)
 
-                pattern, output = ExpectOneOfStep(
+                pattern, _ = ExpectOneOfStep(
                     "tester",
-                    [
-                        "Permission denied",
-                        "password",
-                        "Connection closed",
-                        "$",
-                        "#"
-                    ]
+                    failure_prompts + password_prompts + success_prompts + ["Connection closed"]
                 ).execute(context)
 
-                # If shell prompt appears, login succeeded unexpectedly
-                if pattern in ["$", "#"]:
+                if pattern in success_prompts:
 
                     logger.error("SSH login succeeded with invalid credentials")
 
@@ -88,14 +90,13 @@ class TC3SSHInvalidCredentials(TestCase):
 
                     return self
 
-                # If SSH closes connection after failures
                 if pattern == "Connection closed":
 
                     break
 
             ScreenshotStep("tester").execute(context)
 
-            logger.info("Invalid SSH credentials correctly rejected")
+            logger.info("Invalid SSH credentials rejected")
 
             self.pass_test()
 

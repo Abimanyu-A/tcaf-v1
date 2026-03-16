@@ -4,7 +4,8 @@ from steps.command_step import CommandStep
 from steps.screenshot_step import ScreenshotStep
 from steps.clear_terminal_step import ClearTerminalStep
 
-class TC8SNMPv2Disabled(TestCase):
+
+class TC13SNMPv2Disabled(TestCase):
 
     def __init__(self):
 
@@ -15,7 +16,11 @@ class TC8SNMPv2Disabled(TestCase):
 
     def run(self, context):
 
-        cmd = f"snmpwalk -v2c -c public {context.ssh_ip}"
+        cmd = context.profile.get("snmp.v2_command").format(
+            ip=context.ssh_ip
+        )
+
+        failure_indicators = context.profile.get("snmp.failure_indicators")
 
         tm = context.terminal_manager
 
@@ -26,7 +31,7 @@ class TC8SNMPv2Disabled(TestCase):
 
         output = tm.capture_output("dut")
 
-        if "Timeout" in output or "No Response" in output:
+        if any(indicator in output for indicator in failure_indicators):
 
             ScreenshotStep("dut").execute(context)
 

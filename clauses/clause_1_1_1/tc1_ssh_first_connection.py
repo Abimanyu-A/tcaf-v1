@@ -26,25 +26,29 @@ class TC1SSHFirstConnection(TestCase):
 
     def run(self, context):
 
-        ssh_cmd = f"ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa {context.ssh_user}@{context.ssh_ip}"
+        ssh_cmd = context.profile.get("ssh.connect_command").format(
+            user=context.ssh_user,
+            ip=context.ssh_ip
+        )
+
+        fingerprint_prompts = context.profile.get("ssh.fingerprint_prompt")
+        password_prompts = context.profile.get("ssh.password_prompt")
+        failure_prompts = context.profile.get("ssh.failure_prompt")
 
         StepRunner([
             PcapStartStep(interface="eth0", filename="tc1_ssh_auth.pcapng"),
             CommandStep("tester", ssh_cmd)
         ]).run(context)
 
-        pattern, output = ExpectOneOfStep(
+        pattern, _ = ExpectOneOfStep(
             "tester",
-            [
-                "continue connecting",
-                "password",
-                "connection refused",
-                "Network is unreachable"
-            ]
+            fingerprint_prompts
+            + password_prompts
+            + failure_prompts
+            + ["Network is unreachable"]
         ).execute(context)
 
-        # fingerprint case
-        if pattern == "continue connecting":
+        if pattern in fingerprint_prompts:
 
             logger.info("SSH fingerprint prompt detected")
 
@@ -52,13 +56,12 @@ class TC1SSHFirstConnection(TestCase):
                 InputStep("tester", "yes")
             ]).run(context)
 
-            pattern, output = ExpectOneOfStep(
+            pattern, _ = ExpectOneOfStep(
                 "tester",
-                ["password"]
+                password_prompts
             ).execute(context)
 
-        # password case
-        if pattern == "password":
+        if pattern in password_prompts:
 
             logger.info("Password prompt detected")
 
@@ -68,10 +71,7 @@ class TC1SSHFirstConnection(TestCase):
             ]).run(context)
 
             StepRunner([
-                AnalyzePcapStep("ssh")
-            ]).run(context)
-
-            StepRunner([
+                AnalyzePcapStep("ssh"),
                 WiresharkPacketScreenshotStep()
             ]).run(context)
 
@@ -85,21 +85,19 @@ class TC1SSHFirstConnection(TestCase):
 
             return self
 
-        # connection failure
-        if pattern == "connection refused":
+        if pattern in failure_prompts:
 
-            logger.error("SSH connection refused")
+            logger.error("SSH connection failed")
 
             ScreenshotStep("tester").execute(context)
 
             self.fail_test()
 
             return self
-        
-        # network unreachable case
+
         if pattern == "Network is unreachable":
 
-            logger.error("Network is unreachable - SSH server cannot be reached")
+            logger.error("Network unreachable")
 
             StepRunner([
                 PcapStopStep()

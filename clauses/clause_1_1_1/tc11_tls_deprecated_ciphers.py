@@ -2,7 +2,7 @@ from core.testcase import TestCase
 from core.step_runner import StepRunner
 from steps.command_step import CommandStep
 from steps.screenshot_step import ScreenshotStep
-from steps.session_reset_step import SessionResetStep
+
 
 class TC11TLSDeprecatedCiphers(TestCase):
 
@@ -15,25 +15,19 @@ class TC11TLSDeprecatedCiphers(TestCase):
 
     def run(self, context):
 
-        cmd = f"nmap --script ssl-enum-ciphers -p 443 {context.ssh_ip}"
+        cmd = context.profile.get("cipher_scan.scan_command").format(
+            ip=context.ssh_ip
+        )
+
+        forbidden = context.profile.get("cipher_scan.deprecated_ciphers")
 
         StepRunner([
-            # SessionResetStep("tester"),
             CommandStep("tester", cmd)
         ]).run(context)
 
         tm = context.terminal_manager
 
         output = tm.capture_output("tester")
-
-        forbidden = [
-            "RC4",
-            "3DES",
-            "DES",
-            "MD5",
-            "EXPORT",
-            "NULL"
-        ]
 
         for cipher in forbidden:
 

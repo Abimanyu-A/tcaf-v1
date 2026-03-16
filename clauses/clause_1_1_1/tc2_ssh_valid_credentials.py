@@ -13,6 +13,7 @@ from utils.logger import logger
 class TC2SSHValidCredentials(TestCase):
 
     def __init__(self):
+
         super().__init__(
             "TC2_SSH_VALID_CREDENTIALS",
             "Tester connects to DUT via SSH with valid credentials"
@@ -20,27 +21,31 @@ class TC2SSHValidCredentials(TestCase):
 
     def run(self, context):
 
-        ssh_cmd = f"ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa {context.ssh_user}@{context.ssh_ip}"
+        ssh_cmd = context.profile.get("ssh.connect_command").format(
+            user=context.ssh_user,
+            ip=context.ssh_ip
+        )
+
+        fingerprint_prompts = context.profile.get("ssh.fingerprint_prompt")
+        password_prompts = context.profile.get("ssh.password_prompt")
+        success_prompts = context.profile.get("ssh.success_prompt")
+        failure_prompts = context.profile.get("ssh.failure_prompt")
+
+        verify_cmd = context.profile.get("ssh.commands.verify_login")
+        print(verify_cmd)
 
         try:
 
-            # Start SSH connection
             StepRunner([
                 CommandStep("tester", ssh_cmd)
             ]).run(context)
 
-            # Wait for SSH prompts
             pattern, _ = ExpectOneOfStep(
                 "tester",
-                [
-                    "password",
-                    "continue connecting",
-                    "connection refused"
-                ]
+                password_prompts + fingerprint_prompts + failure_prompts
             ).execute(context)
 
-            # Handle first-time SSH host verification
-            if pattern == "continue connecting":
+            if pattern in fingerprint_prompts:
 
                 StepRunner([
                     InputStep("tester", "yes")
@@ -48,57 +53,50 @@ class TC2SSHValidCredentials(TestCase):
 
                 pattern, _ = ExpectOneOfStep(
                     "tester",
-                    ["password"]
+                    password_prompts
                 ).execute(context)
 
-            # Handle connection failure
-            if pattern == "connection refused":
+            if pattern in failure_prompts:
 
                 logger.error("SSH connection refused")
 
                 ScreenshotStep("tester").execute(context)
 
                 self.fail_test()
+
                 return self
 
-            # Send password
             StepRunner([
                 InputStep("tester", context.ssh_password)
             ]).run(context)
 
-            # Wait for successful login indicators
             pattern, _ = ExpectOneOfStep(
                 "tester",
-                [
-                    "$",
-                    "#",
-                    ">",
-                    "Permission denied"
-                ]
+                success_prompts + failure_prompts
             ).execute(context)
 
-            if pattern == "Permission denied":
+            if pattern in failure_prompts:
 
                 logger.error("Valid SSH credentials rejected")
 
                 ScreenshotStep("tester").execute(context)
 
                 self.fail_test()
+
                 return self
 
-            # Run a command to confirm shell access
             StepRunner([
-                CommandStep("tester", "whoami")
+                CommandStep("tester", verify_cmd)
             ]).run(context)
 
-            pattern, _ = ExpectOneOfStep(
+            ExpectOneOfStep(
                 "tester",
                 [context.ssh_user]
             ).execute(context)
 
             ScreenshotStep("tester").execute(context)
 
-            logger.info("SSH login verified using command execution")
+            logger.info("SSH login verified")
 
             self.pass_test()
 

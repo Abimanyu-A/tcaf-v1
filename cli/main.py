@@ -12,6 +12,9 @@ from config.settings import initialize_directories
 from utils.logger import logger
 from core.engine import Engine
 
+import os
+import yaml
+
 console = Console()
 
 DEFAULT_SSH_USER = "msfadmin"
@@ -25,9 +28,14 @@ DEFAULT_SNMP_PRIV_PASS = "privpass"
 DEFAULT_WEB_USERNAME = "admin"
 DEFAULT_WEB_PASSWORD = "123"
 
+DEFAULT_PROFILE = "default"
+
 app = typer.Typer(
     help="TCAF - Telecom Compliance Automation Framework"
 )
+
+profile_app = typer.Typer(help="Manage DUT profiles")
+app.add_typer(profile_app, name="profile")
 
 
 def show_banner():
@@ -64,6 +72,11 @@ def show_banner():
 def run(
     clause: str = typer.Option(None, "--clause", help="Run a specific clause"),
     section: str = typer.Option(None, "--section", help="Run a section of clauses"),
+    profile: str = typer.Option(
+        DEFAULT_PROFILE,
+        "--profile",
+        help="DUT profile configuration (linux, openwrt, cisco, etc)"
+    ),
 ):
 
     show_banner()
@@ -71,6 +84,8 @@ def run(
     initialize_directories()
 
     logger.info("TCAF CLI started")
+
+    console.print(f"[bold cyan]Using DUT profile:[/bold cyan] {profile}\n")
 
     console.print("[bold cyan]SSH Connection Setup[/bold cyan]\n")
 
@@ -134,6 +149,7 @@ def run(
     engine = Engine(
         clause=clause,
         section=section,
+        profile=profile,
         ssh_user=ssh_user,
         ssh_ip=ssh_ip,
         ssh_password=ssh_password,
@@ -154,6 +170,88 @@ def run(
         time.sleep(1)
 
     engine.start()
+
+@profile_app.command("create")
+def create_profile():
+
+    console.print("\n[bold cyan]Create New DUT Profile[/bold cyan]\n")
+
+    profile_name = typer.prompt("Profile name")
+
+    template_path = "profile/default.yaml"
+
+    if not os.path.exists(template_path):
+        console.print("[red]Default profile template not found![/red]")
+        raise typer.Exit()
+
+    with open(template_path) as f:
+        template = yaml.safe_load(f)
+
+    def walk_config(config, prefix=""):
+
+        for key, value in config.items():
+
+            full_key = f"{prefix}.{key}" if prefix else key
+
+            if isinstance(value, dict):
+
+                console.print(f"\n[bold yellow]{full_key}[/bold yellow]")
+                walk_config(value, full_key)
+
+            elif isinstance(value, list):
+
+                default_value = ", ".join(str(x) for x in value)
+
+                user_input = typer.prompt(
+                    f"{full_key}",
+                    default=default_value
+                )
+
+                config[key] = [x.strip() for x in user_input.split(",")]
+
+            else:
+
+                user_input = typer.prompt(
+                    f"{full_key}",
+                    default=str(value)
+                )
+
+                config[key] = user_input
+
+    walk_config(template)
+
+    os.makedirs("profiles", exist_ok=True)
+
+    output_path = f"profile/{profile_name}.yaml"
+
+    with open(output_path, "w") as f:
+        yaml.dump(template, f, sort_keys=False)
+
+    console.print(f"\n[bold green]Profile created:[/bold green] {output_path}\n")
+
+@profile_app.command("list")
+def list_profiles():
+
+    console.print("\n[bold cyan]Available Profiles[/bold cyan]\n")
+
+    profile_dir = "profile"
+
+    if not os.path.exists(profile_dir):
+        console.print("No profiles directory found.")
+        return
+
+    files = os.listdir(profile_dir)
+
+    yaml_files = [f.replace(".yaml", "") for f in files if f.endswith(".yaml")]
+
+    if not yaml_files:
+        console.print("No profiles found.")
+        return
+
+    for p in yaml_files:
+        console.print(f"• {p}")
+
+    console.print()
 
 
 def main():

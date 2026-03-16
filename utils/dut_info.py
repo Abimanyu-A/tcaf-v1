@@ -1,10 +1,18 @@
 import subprocess
 
-
-def ssh_cmd(user, ip, cmd):
+def ssh_cmd(user, ip, password, cmd):
 
     result = subprocess.run(
-        ["ssh", f"{user}@{ip}", cmd],
+        [
+            "sshpass",
+            "-p", password,
+            "ssh",
+            "-o", "HostKeyAlgorithms=+ssh-rsa",
+            "-o", "PubkeyAcceptedAlgorithms=+ssh-rsa",
+            "-o", "StrictHostKeyChecking=no",
+            f"{user}@{ip}",
+            cmd
+        ],
         capture_output=True,
         text=True
     )
@@ -12,12 +20,12 @@ def ssh_cmd(user, ip, cmd):
     return result.stdout.strip() or "Unknown"
 
 
-def get_dut_info(user, ip):
+def get_dut_info(user, ip, password):
 
-    hostname = ssh_cmd(user, ip, "hostname")
+    hostname = ssh_cmd(user, ip, password, "hostname")
 
     # -------- OS VERSION --------
-    os_release = ssh_cmd(user, ip, "cat /etc/os-release")
+    os_release = ssh_cmd(user, ip, password, "cat /etc/os-release")
 
     version = "Unknown"
 
@@ -33,6 +41,7 @@ def get_dut_info(user, ip):
     os_hash = ssh_cmd(
         user,
         ip,
+        password,
         "sha256sum /etc/os-release 2>/dev/null | awk '{print $1}'"
     )
 
@@ -40,6 +49,7 @@ def get_dut_info(user, ip):
     config_hash = ssh_cmd(
         user,
         ip,
+        password,
         "sha256sum /etc/ssh/sshd_config 2>/dev/null | awk '{print $1}'"
     )
 

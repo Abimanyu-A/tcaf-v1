@@ -5,6 +5,7 @@ from steps.browser_screenshot_step import BrowserScreenshotStep
 from steps.fill_input_step import FillInputStep
 from steps.click_step import ClickStep
 
+
 class TC6HTTPSInvalidLogin(TestCase):
 
     def __init__(self):
@@ -16,12 +17,15 @@ class TC6HTTPSInvalidLogin(TestCase):
 
     def run(self, context):
 
-        url = f"http://{context.ssh_ip}/dvwa/login.php"
+        login_path = context.profile.get("https.login_path")
+        invalid_password = context.profile.get("ssh.invalid_password")
+
+        url = f"http://{context.ssh_ip}{login_path}"
 
         StepRunner([
             OpenURLStep(url),
             FillInputStep("username", context.ssh_user),
-            FillInputStep("password", "wrongpassword"),
+            FillInputStep("password", invalid_password),
             ClickStep("Login"),
             BrowserScreenshotStep("https_invalid_login.png")
         ]).run(context)

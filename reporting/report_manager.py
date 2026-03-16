@@ -10,7 +10,7 @@ class ReportManager:
         print(context.evidence.__dict__)
 
         report = ReportFactory.create(context, results)
-        path = report.generate(context, results)
+        path = report.generate()
 
         logger.info(f"Report generated: {path}")
 
