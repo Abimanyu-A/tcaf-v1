@@ -1,6 +1,6 @@
 # ICAF - ITSAR Compliance Automation Framework
 
-ICAF is a Python-based automation framework for evaluating device compliance against ITSAR (IT Security Assurance Requirements) clauses. It automates the execution of structured test cases across multiple network protocols and management interfaces, collects evidence, and produces formal compliance reports.
+ICAF is a Python-based automation framework for evaluating device compliance against ITSAR (Indian Telecom Security Assurance Requirements) clauses. It automates the execution of structured test cases across multiple network protocols and management interfaces, collects evidence, and produces formal compliance reports.
 
 ---
 
